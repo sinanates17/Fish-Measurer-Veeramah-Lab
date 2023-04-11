@@ -20,14 +20,7 @@ def edge(input_image):
     image = input_image
     image = ResizeWithAspectRatio(image, height=720)
     image = cv2.medianBlur(image, 3, 0)
-
-    #for row,i in enumerate(image):
-        #for col,j in enumerate(i):
-            #for channel,k in enumerate(j):
-                #image[row][col][channel] = (image[row][col][channel]//32)*32
-        #print("Progress: " + str(row/len(image)))
-    #image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     image = cv2.Canny(image,100,200,1)
-    image = cv2.dilate(image, None, iterations=2)
-    image = cv2.erode(image, None, iterations=2)
+    image = cv2.dilate(image, None, iterations=4)
+    image = cv2.erode(image, None, iterations=4)
     return image

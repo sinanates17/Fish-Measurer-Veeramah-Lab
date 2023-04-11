@@ -1,9 +1,7 @@
-# import the necessary packages
 from scipy.spatial import distance as dist
 from imutils import perspective
 from imutils import contours
 import numpy as np
-import argparse
 import imutils
 import cv2
 import process
@@ -13,6 +11,9 @@ def midpoint(ptA, ptB):
 
 def processImage(image_path, known_width):
 
+    measurements = []
+    cntcounter = 0
+
     # load the image
     image = cv2.imread(image_path)
     edged = process.edge(image)
@@ -20,15 +21,14 @@ def processImage(image_path, known_width):
     cnts = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     cnts = imutils.grab_contours(cnts)
 
-    # sort the contours from left-to-right and initialize the
-    # 'pixels per metric' calibration variable
-
     (cnts, _) = contours.sort_contours(cnts, method="top-to-bottom")
-    pixelsPerMetric = None
+    pixelsPerMetricA = None
+    pixelsPerMetricB = None
 
     measurements = []
     orig_ = image.copy()
     orig = process.ResizeWithAspectRatio(orig_, height=720)
+    orig = cv2.copyMakeBorder(orig, 0, 0, 0, 100, borderType=cv2.BORDER_CONSTANT, value=[200,200,200])
 
     # loop over the contours individually
     for c in cnts:
@@ -38,7 +38,6 @@ def processImage(image_path, known_width):
             continue
 
         # compute the rotated bounding box of the contour
-        #orig = cv2.resize(orig, (960, (960 / orig.shape[1]) * orig.shape[0]))
         box = cv2.minAreaRect(c)
         box = cv2.cv.BoxPoints(box) if imutils.is_cv2() else cv2.boxPoints(box)
         box = np.array(box, dtype="int")
@@ -84,11 +83,12 @@ def processImage(image_path, known_width):
             # if the pixels per metric has not been initialized, then
             # compute it as the ratio of pixels to supplied metric
             # (in this case, inches)   
-            if pixelsPerMetric is None:
-                pixelsPerMetric = dB / known_width
+            if pixelsPerMetricA is None or pixelsPerMetricB is None:
+                pixelsPerMetricA = dA / known_width
+                pixelsPerMetricB = dB / known_width
             # compute the size of the object
-            dimA = dA / pixelsPerMetric
-            dimB = dB / pixelsPerMetric
+            dimA = dA / pixelsPerMetricA
+            dimB = dB / pixelsPerMetricB
             # draw the object sizes on the image
             cv2.putText(orig, "{:.2f}cm".format(dimB),
                 (int(tltrX - 15), int(tltrY - 10)), cv2.FONT_HERSHEY_SIMPLEX,
@@ -96,6 +96,13 @@ def processImage(image_path, known_width):
             cv2.putText(orig, "{:.2f}cm".format(dimA),
                 (int(trbrX + 10), int(trbrY)), cv2.FONT_HERSHEY_SIMPLEX,
                 0.65, (255, 255, 255), 2)
-            cv2.imshow(image_path, orig)
-    return orig
+        if cntcounter != 0:
+                cv2.putText(orig, str(cntcounter),
+                (int(trbrX + 10), int(trbrY -25)), cv2.FONT_HERSHEY_SIMPLEX,
+                0.65, (0,0,255), 2)
+
+                measurements.append([int(cntcounter), dimB, dimA])
+        cntcounter += 1
+            #cv2.imshow(image_path, orig)
+    return orig, measurements
 
